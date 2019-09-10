@@ -1,35 +1,54 @@
 # parsing
 compared to lisp, whose internal representation closely matches lisp code, basic code is somewhat unwieldy. the basic interpreter will have to do a lot more work. 
 
-### an execution trace
-we have `tokens = ['20', 'LET', 'X', '=', 'X', '+', '1']` and want to parse it with `statement()`.
+## an execution trace of a simple expression
+we have `tokens = ['20', 'LET', 'X', '=', 'X', '+', '1']` and want to parse it with `statement()`, as defined:
+```python
+def statement():
+    num  = linenumber()
+    typ  = pop(is_stmt_type) or fail('unknown statement type')
+    args = []
+    grammar_rules = grammar[typ]
+    for p in grammar_rules:
+        if callable(p):
+            args.append(p())
+        else:
+            pop(p) or fail('expected ' + repr(p))
+    return Stmt(num, typ, args)
+```
+the goal of `statement()` is to take a list of tokens and return a single `Stmt` object. although `Stmt` is a single object, it retains the semantics of the list of tokens.
 
+### extracting line number
 the first line, below, extracts line number from the expression.
 ```python
-num  = linenumber()  # pops line number from line
+num  = linenumber()
 ```
+`linenumber()` is stateful: it will mutate the `tokens` and return an integer.
 
-### keyword
-the second line, below, extracts the reserved keyword, in this case, the keyword is `LET`. (other keywords include `READ`, `GOTO`, `FOR`, `STOP`, etc, there are 15 keywords known by the interpreter.)
+### keyword for grammar rules
+the second line extracts the reserved keyword from `tokens` and assigns it to `typ`. in this case, the keyword is `LET`. (other keywords include `READ`, `GOTO`, `FOR`, `STOP`, etc, there are 15 keywords known by the interpreter.)
 ```python
 typ  = pop(is_stmt_type) or fail('unknown statement type')
 ```
-by now, `tokens` is the list `['X', '=', 'X', '+', '1']`. 
+`typ` will be used to extract the appropriate grammar rule. (`LET`'s grammar rule is `[variable, '=', expression]`.)
+
+additionally, `tokens` is `['X', '=', 'X', '+', '1']`. 
 
 ### populating args
 ```python
 args = []
-for p in grammar[typ]: # For each part of rule, call if callable or match if literal string
+grammar_rules = grammar[typ]
+for p in grammar_rules:
     if callable(p):  # cpython assumes all variables bound to functions are callable
         args.append(p())
     else:
         pop(p) or fail('expected ' + repr(p))
 ```
-`typ` is `LET`, so we extract `LET`'s definition from the grammar book. `LET` is defined as:
-```python
-'LET': [variable, '=', expression]`
-```
-for the first element, `p` is `variable`. `variable` is callable, so we call `p()`, which will be appended to args. 
+`typ` is used to extract the appropriate grammar rule into `grammar_rules`: `LET`'s grammar rule is `[variable, '=', expression]`.
+
+we then iterate through `grammar_rules`.
+
+the first element is `variable`. `variable` is callable (since it's a function previously), so we call `p()`. 
 
 this kicks off frame 2 to execute `variable`.
 ```python
@@ -42,13 +61,13 @@ def variable():
     else: 
         return V  
 ```  
-since the first element in `token` is not "(", we return "X" to frame 1. 
+`V` is created by popping off the first element in `tokens`, which was `['X', '=', 'X', '+', '1']` and `[=', 'X', '+', '1']` afterwards. `V` points to the value `"X"`. since the first element in `token` is now `"="` and not `"("`, we return `V` to frame 1 and appended to `args`.
 
-`=` is not callable so we pop `=` from the list thats being iterated (ie `for p in grammar[typ]`). 
+`args` is currently `["X"]`.
 
-at this point, `p` is `expression` and tokens is `['X', '=', 'X', '+', '1']`. 
+moving on to the next element in `grammar_rules`. `=` is not callable so we pop from `tokens`, which is currently `['=', 'X', '+', '1']`. `=` is not bound to anything and lost. `tokens` now points to `['X', '+', '1']`.
 
-finally, `p` is `expression`. `expression` is callable and is defined by the following:
+moving on to the final element in `grammar_rules`, which is `expression`. `expression` is callable so we call `expression()`:
 ```python
 def expression(prec=1): 
     exp = primary()                         # 'A' => 'A'
@@ -58,4 +77,9 @@ def expression(prec=1):
         exp = Opcall(exp, op, rhs)          # 'A + B' => Opcall('A', '+', 'B')
     return exp
 ```
-`expression` returns an object `Opcall(x='X', op='+', y=1.0)]` this object is appended to `args`, bundled into another object `return Stmt(num, typ, args)`.
+according to norvig, `expression` is the most complicated part of the grammar because it must handle operator precedence. [NEEDS EXAMINATION]. ultimately, `expression` returns a single namedtuple `Opcall(x='X', op='+', y=1.0)]`, which is appended to `args`. 
+
+`args` is finally completed and points to `['X', Opcall(x='X', op='+', y=1.0)]`.
+
+### `statement()` returns a `Stmt` object
+at the end of `statement()`, we have a few data objects: `num=20`, `typ='LET'`, and `args=['X', Opcall(x='X', op='+', y=1.0)]`. they are bundled into a single namedtuple `Stmt`.
