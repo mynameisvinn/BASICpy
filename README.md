@@ -1,0 +1,2 @@
+# BASICpy
+a heavily annotated implementation of the BASIC interpreter, implemented in python. based on norvig's [code](https://github.com/norvig/pytudes/blob/master/ipynb/BASIC.ipynb) and inspired by [two bit history](https://twobithistory.org/2018/09/02/learning-basic.html).
