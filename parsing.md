@@ -58,13 +58,14 @@ def statement():
 ```
 grammar extraction doesnt mutate anything so `tokens` is still `['X', '=', 'X', '+', '1']`. 
 
-## populating args
+## populating args according to grammar rules
 ```python
 def statement():
+    ...
     args = []
-    grammar_rules = grammar[typ]
+    ...
     for p in grammar_rules:
-        if callable(p):  # cpython assumes all variables bound to functions are callable
+        if callable(p):
             args.append(p())
         else:
             _ = pop(p) or fail('expected ' + repr(p))
@@ -72,7 +73,7 @@ def statement():
 through `typ`, we extracted the appropriate grammar rule into the list `grammar_rules`, which is `[variable, '=', expression]`. we will now iterate through `grammar_rules`.
 
 ### step 1 of 3: evaluating `variable`
-the first element is `variable`. `variable` is callable so we call and append `p()` to `args`. 
+the first element in `grammar_rules` is `variable`. `callable(variable)` is `True` so we evaluate `p()` in frame 2.
 ```python
 def variable(): 
     V = varname()
@@ -83,29 +84,26 @@ def variable():
     else: 
         return V  
 ```  
-`V` is created with `varname()`:
+`V` is created by `varname()` in frame 3.
 ```python
 def varname():       
     return pop(is_varname) or fail('expected a variable name')
 ```
-`pop()` returns the first token from `tokens` as long as the constraint `is_varname` is `True`. 
-
-`is_varname` is defined as:
+`pop()` takes us to frame 4 and returns the first token from `tokens` if the constraint `is_varname` is `True`. 
 ```python
 def is_varname(x):
     return is_str(x) and len(x) in (1, 2) and x[0].isalpha() # A, A1, A2, B, ...
-```
 
-`pop()` is evaluated:
-```python
 def pop(constraint=None):
     top = peek()  # what is the next token in the list of tokens?
     if constraint is None or (top == constraint) or (callable(constraint) and constraint(top)):
         return tokens.pop(0)
 ```
-from `peek()`, `top` is assigned to `"X"`, the first item in tokens. `is_varname` is passed as `constraint`: since `is_varname` is callable and `is_varname(top)` evaluates to `True`, `pop()` returns `"X"` to the calling function `varname()`. (after this pop operation, `tokens` is now `[=', 'X', '+', '1']`. in turn, `varname()` returns `"X"`, which is bound to the local variable `V`.
+`top` is assigned to `"X"`, the first item in `tokens`. 
 
-in recap, `variable()` was evaluated to `"X"`, which is then appended to `args`. `args` is currently `["X"]`.
+since the function `is_varname` is callable and `is_varname(top)` evaluates to `True`, `pop()` returns `"X"` to `varname()`. (after this pop operation, `tokens` is now `[=', 'X', '+', '1']`.) finally, `varname()` returns `"X"`, which is bound to the local variable `V`.
+
+in recap, the `variable()` evaluated to `"X"` and appended to `args`. `args` is currently `["X"]`.
 
 ### step 2 of 3: evaluating "="
 
