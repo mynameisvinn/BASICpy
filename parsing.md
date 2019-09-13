@@ -1,7 +1,7 @@
 # parsing
-compared to lisp, whose internal representation closely matches lisp code, basic code is somewhat unwieldy. the basic interpreter will have to do a lot more work. 
+compared to lisp, whose internal representation closely matches lisp code, BASIC code is unwieldy. the BASIC parser will have to do a lot more work, particularly around operator precedence. 
 
-## an execution trace of a simple expression
+## an execution trace of a simple statement
 we have `tokens = ['20', 'LET', 'X', '=', 'X', '+', '1']` and want to parse it with `statement()`, as defined:
 ```python
 def statement():
@@ -16,14 +16,14 @@ def statement():
             pop(p) or fail('expected ' + repr(p))
     return Stmt(num, typ, args)
 ```
-the goal of `statement()` is to take a list of tokens and return a single `Stmt` object. although `Stmt` is a single object, it retains the semantics of the list of tokens.
+the goal of `statement()` is to take a list of tokens and return a single namedtuple object `Stmt`. although `Stmt` is a single object, it retains the semantics - although it is syntatically different from `tokens`, the behavior/intent/semantics remain the same.
 
 ### extracting line number
 the first line, below, extracts line number from the expression.
 ```python
 num  = linenumber()
 ```
-`linenumber()` is stateful: it will mutate the `tokens` and return an integer.
+`linenumber()` is stateful: it mutates `tokens` and return an integer.
 
 ### keyword for grammar rules
 the second line extracts the reserved keyword from `tokens` and assigns it to `typ`. in this case, the keyword is `LET`. (other keywords include `READ`, `GOTO`, `FOR`, `STOP`, etc, there are 15 keywords known by the interpreter.)
