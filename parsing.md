@@ -15,19 +15,19 @@ def statement():
             _ = pop(p) or fail('expected ' + repr(p))
     return Stmt(num, typ, args)
 ```
-`statement()` consumes `tokens`, a list of tokens, and returns a single namedtuple `Stmt`. although `Stmt` is syntactically different from `tokens`, it preserves behavior and semantics.
+`statement()` consumes `tokens`, a list of tokens that exists as a global variable, and returns a single namedtuple `Stmt`. although `Stmt` preserves semantics despite being syntactically different.
 
-## extracting line number with `linenumber()`
-we extract the line number from the line of code.
+## extracting line numbers with `linenumber()`
+we extract the line number.
 ```python
 num  = linenumber()
 ...
 def linenumber():    
     return (int(pop()) if peek().isnumeric() else fail('missing line number'))
 ```
-`linenumber()` mutates `tokens`, just like any function that calls `pop()`, and returns an integer. `tokens` is mutated to `['LET', 'X', '=', 'X', '+', '1']`.
+`linenumber()` returns the line number as an integer. it also mutates `tokens`, just like any function that calls `pop()`. `tokens` is now `['LET', 'X', '=', 'X', '+', '1']`.
 
-## extracting keywords/types for grammar rules
+## extracting types for grammar rules
 the second line extracts the reserved keyword from `tokens` and assigns it to `typ`:
 ```python
 def statement():
@@ -46,10 +46,9 @@ def pop(constraint=None):
     if constraint is None or (top == constraint) or (callable(constraint) and constraint(top)):
         return tokens.pop(0)
 ```
-since `is_stmt_type` is callable and `is_stmt_type("LET")` evaluates to `True`, `pop(is_stmt_type)` returns `LET`, which is then bound to `typ`.
+since `is_stmt_type` is callable and `is_stmt_type("LET")` evaluates to `True`, `pop(is_stmt_type)` returns `LET`, which is then bound to `typ`. `pop()` is a destructive function and `tokens` is now `'X', '=', 'X', '+', '1']`.
 
-
-### using `typ` to extract grammar
+## using `typ` to extract grammar rules
 `typ` is bound to `'LET'` and then used to extract the corresponding grammar (ie `[variable, '=', expression]`).
 
 ```python
