@@ -1,7 +1,7 @@
-# parsing:
+# parsing
 compared to lisp, whose internal representation closely matches lisp code, BASIC code is unwieldy. the BASIC parser will have to do a lot more work, particularly around operator precedence. 
 
-we have `tokens = ['20', 'LET', 'X', '=', 'X', '+', '1']` and want to parse it with `statement()`, as defined:
+we have `tokens = ['20', 'LET', 'X', '=', 'X', '+', '1']` and want to parse it with `statement()`:
 ```python
 def statement():
     num  = linenumber()
@@ -12,40 +12,65 @@ def statement():
         if callable(p):
             args.append(p())
         else:
-            pop(p) or fail('expected ' + repr(p))
+            _ = pop(p) or fail('expected ' + repr(p))
     return Stmt(num, typ, args)
 ```
-the goal of `statement()` is to take a list of tokens and return a single namedtuple object `Stmt`. although `Stmt` is a single object (and obviously is syntatically different from `tokens`), the behavior/semantics remain the same.
+`statement()` consumes `tokens`, a list of tokens, and returns a single namedtuple `Stmt`. although `Stmt` is syntactically different from `tokens`, it preserves behavior and semantics.
 
-## extracting line number
-the first line, below, extracts line number from the expression.
+## extracting line number with `linenumber()`
+we extract the line number from the line of code.
 ```python
 num  = linenumber()
+...
+def linenumber():    
+    return (int(pop()) if peek().isnumeric() else fail('missing line number'))
 ```
-`linenumber()` is stateful: it mutates `tokens` and return an integer.
+`linenumber()` mutates `tokens`, just like any function that calls `pop()`, and returns an integer. `tokens` is mutated to `['LET', 'X', '=', 'X', '+', '1']`.
 
-## keyword for grammar rules
-the second line extracts the reserved keyword from `tokens` and assigns it to `typ`. in this case, the keyword is `LET`. (other keywords include `READ`, `GOTO`, `FOR`, `STOP`, etc, there are 15 keywords known by the interpreter.)
+## extracting keywords/types for grammar rules
+the second line extracts the reserved keyword from `tokens` and assigns it to `typ`:
 ```python
-typ  = pop(is_stmt_type) or fail('unknown statement type')
+def statement():
+    ...
+    typ  = pop(is_stmt_type)
 ```
-`typ` will be used to extract the appropriate grammar rule. (`LET`'s grammar rule is `[variable, '=', expression]`.)
+`pop()` takes the constraint `is_stmt_type`, defined as:
+```python
+def is_stmt_type(x):  
+    return is_str(x) and x in grammar  # LET, READ, ... (other keywords include `READ`, `GOTO`, `FOR`, `STOP`, etc, there are 15 keywords known by the interpreter.)
+```
+recall that `pop(constraint)` is:
+```python
+def pop(constraint=None):
+    top = peek()  # in this case, top = 'LET'
+    if constraint is None or (top == constraint) or (callable(constraint) and constraint(top)):
+        return tokens.pop(0)
+```
+since `is_stmt_type` is callable and `is_stmt_type("LET")` evaluates to `True`, `pop(is_stmt_type)` returns `LET`, which is then bound to `typ`.
 
-additionally, `tokens` is `['X', '=', 'X', '+', '1']`. remember `tokens` exists in the global environment and is therefore accessible by all functions.
+
+### using `typ` to extract grammar
+`typ` is bound to `'LET'` and then used to extract the corresponding grammar (ie `[variable, '=', expression]`).
+
+```python
+def statement():
+    ...
+    grammar_rules = grammar[typ]
+```
+grammar extraction doesnt mutate anything so `tokens` is still `['X', '=', 'X', '+', '1']`. 
 
 ## populating args
 ```python
-args = []
-grammar_rules = grammar[typ]
-for p in grammar_rules:
-    if callable(p):  # cpython assumes all variables bound to functions are callable
-        args.append(p())
-    else:
-        _ = pop(p) or fail('expected ' + repr(p))
+def statement():
+    args = []
+    grammar_rules = grammar[typ]
+    for p in grammar_rules:
+        if callable(p):  # cpython assumes all variables bound to functions are callable
+            args.append(p())
+        else:
+            _ = pop(p) or fail('expected ' + repr(p))
 ```
-`typ` is used to extract the appropriate grammar rule into `grammar_rules`: `LET`'s grammar rule is `[variable, '=', expression]`.
-
-we will now iterate through `grammar_rules`.
+through `typ`, we extracted the appropriate grammar rule into the list `grammar_rules`, which is `[variable, '=', expression]`. we will now iterate through `grammar_rules`.
 
 ### step 1 of 3: evaluating `variable`
 the first element is `variable`. `variable` is callable so we call and append `p()` to `args`. 
