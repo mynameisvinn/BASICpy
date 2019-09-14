@@ -28,25 +28,24 @@ def linenumber():
 `linenumber()` returns the line number as an integer. it also mutates `tokens`, just like any function that calls `pop()`. `tokens` is now `['LET', 'X', '=', 'X', '+', '1']`.
 
 ## extracting types for grammar rules
-the second line extracts the reserved keyword from `tokens` and assigns it to `typ`:
+the second line in `statement()` extracts the reserved keyword from `tokens` and assigns it to `typ`:
 ```python
 def statement():
     ...
     typ  = pop(is_stmt_type)
+    ...
 ```
-`pop()` takes the constraint `is_stmt_type`, defined as:
+`pop()` takes the `is_stmt_type` as an argument:
 ```python
 def is_stmt_type(x):  
     return is_str(x) and x in grammar  # LET, READ, ... (other keywords include `READ`, `GOTO`, `FOR`, `STOP`, etc, there are 15 keywords known by the interpreter.)
-```
-recall that `pop(constraint)` is:
-```python
+
 def pop(constraint=None):
     top = peek()  # in this case, top = 'LET'
     if constraint is None or (top == constraint) or (callable(constraint) and constraint(top)):
         return tokens.pop(0)
 ```
-since `is_stmt_type` is callable and `is_stmt_type("LET")` evaluates to `True`, `pop(is_stmt_type)` returns `LET`, which is then bound to `typ`. `pop()` is a destructive function and `tokens` is now `'X', '=', 'X', '+', '1']`.
+since `is_stmt_type` is callable and `is_stmt_type("LET")` evaluates to `True`, `pop(is_stmt_type)` returns `LET`, which is then bound to `typ`. `pop()` modifies `tokens` to `['X', '=', 'X', '+', '1']`.
 
 ## using `typ` to extract grammar rules
 `typ` is bound to `'LET'` and then used to extract the corresponding grammar (ie `[variable, '=', expression]`).
@@ -55,10 +54,11 @@ since `is_stmt_type` is callable and `is_stmt_type("LET")` evaluates to `True`, 
 def statement():
     ...
     grammar_rules = grammar[typ]
+    ...
 ```
-grammar extraction doesnt mutate anything so `tokens` is still `['X', '=', 'X', '+', '1']`. 
+`tokens` is still `['X', '=', 'X', '+', '1']`. 
 
-## populating args according to grammar rules
+## populating `args` according to grammar rules
 ```python
 def statement():
     ...
@@ -70,10 +70,11 @@ def statement():
         else:
             _ = pop(p) or fail('expected ' + repr(p))
 ```
-through `typ`, we extracted the appropriate grammar rule into the list `grammar_rules`, which is `[variable, '=', expression]`. we will now iterate through `grammar_rules`.
+`grammar_rules` is `[variable, '=', expression]`, which is the rule corresponding to the `'LET'` keyword.
+
 
 ### step 1 of 3: evaluating `variable`
-the first element in `grammar_rules` is `variable`. `callable(variable)` is `True` so we evaluate `p()` in frame 2.
+the first element in `grammar_rules` is `variable`. `callable(variable)` is `True` so it is evaluated in frame 2.
 ```python
 def variable(): 
     V = varname()
@@ -105,7 +106,7 @@ since the function `is_varname` is callable and `is_varname(top)` evaluates to `
 
 in recap, the `variable()` evaluated to `"X"` and appended to `args`. `args` is currently `["X"]`.
 
-### step 2 of 3: evaluating "="
+### step 2 of 3: evaluating `"="`
 
 moving on to the next element in `grammar_rules`. `=` is not callable so we pop from `tokens`. `=` is not bound to anything and lost. `tokens` now points to `['X', '+', '1']`.
 
