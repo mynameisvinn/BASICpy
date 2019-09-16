@@ -1,105 +1,126 @@
 # expression
+
+## evaluate `exp = primary()`
 imagine `tokens` points to `['X', '+', '1']`.
 ```python
-def expression(prec=1): 
+# def expression(prec=1): 
     exp = primary()                         # 'A' => 'A'
-    while precedence(peek()) >= prec:
-        op = pop()
-        rhs = expression(precedence(op) + associativity(op))
-        exp = Opcall(exp, op, rhs)          # 'A + B' => Opcall('A', '+', 'B')
-    return exp
+    # while precedence(peek()) >= prec:
+        # op = pop()
+        # rhs = expression(precedence(op) + associativity(op))
+        # exp = Opcall(exp, op, rhs)          # 'A + B' => Opcall('A', '+', 'B')
+    # return exp
 ```
-in the first line, `exp` is bound to `primary()`:
+`exp` is bound to `primary()`, which is evaluated in frame 2:
 ```python
 def primary():
-    "Parse a primary expression (no infix op except maybe within parens)."
-    if is_number(peek()):                   # '1.23' => 1.23 
-        return number()
+    # if is_number(peek()):                   # '1.23' => 1.23 
+        # return number()
     elif is_varname(peek()):                # X or A(I) or M(I+1, J)
         return variable()
-    elif is_funcname(peek()):               # SIN(X) => Funcall('SIN', 'X')
-        return Funcall(pop(), primary())
-    elif pop('-'):                          # '-X' => Funcall('NEG', 'X')
-        return Funcall('NEG', primary())
-    elif pop('('):                          # '(X)' => 'X'
-        exp = expression()
-        pop(')') or fail('expected ")" to end expression')
-        return exp
-    else:
-        return fail('unknown expression')
+    # elif is_funcname(peek()):               # SIN(X) => Funcall('SIN', 'X')
+        # return Funcall(pop(), primary())
+    # elif pop('-'):                          # '-X' => Funcall('NEG', 'X')
+        # return Funcall('NEG', primary())
+    # elif pop('('):                          # '(X)' => 'X'
+        # exp = expression()
+        # pop(')') or fail('expected ")" to end expression')
+        # return exp
+    # else:
+        # return fail('unknown expression')
 ```
-in frame 2, since `peek()` returns `'X'`, a valid variable name, we launch frame 3 for `variable()`.
+
+`peek()` returns `'X'` (`tokens` points to `['X', '+', '1']`), a valid variable name, we launch frame 3 to evaluate `variable()`.
+
 ```python
-def variable(): 
+# def variable(): 
     V = varname()
-    if pop('('):
-        indexes = list_of(expression)()
-        pop(')') or fail('expected ")" to close subscript')
-        return Subscript(V, indexes) # E.g. 'A(I)' => Subscript('A', ['I'])
-    else: 
-        return V  
+    # if pop('('):
+        # indexes = list_of(expression)()
+        # pop(')') or fail('expected ")" to close subscript')
+        # return Subscript(V, indexes) # E.g. 'A(I)' => Subscript('A', ['I'])
+    # else: 
+        # return V  
 ```  
-`V` is created by `varname()` in frame 4.
+`V` is created by `varname()`, which is executed in frame 4.
 ```python
 def varname():       
     return pop(is_varname) or fail('expected a variable name')
 ```
-in frame 5, `pop()` returns the first token from `tokens` if the constraint `is_varname` is `True`. 
+`pop()`, evaluated in frame 5, returns the first token from `tokens` (pointing to`['X', '+', '1']`) if the constraint `is_varname` is `True`. 
 ```python
-def pop(constraint=None):
-    top = peek()  # what is the next token in the list of tokens?
-    if constraint is None or (top == constraint) or (callable(constraint) and constraint(top)):
-        return tokens.pop(0)
-
 def is_varname(x):
     return is_str(x) and len(x) in (1, 2) and x[0].isalpha() # A, A1, A2, B, ...
-```
-in this example, `'X'` is returned by `pop()` to frame 4 (`varname()`). frame 4 returns `'X'` to frame 3, which is then bound to `V` in frame 3. frame 3 (`variable()`) then returns `V` to frame 2. frame 2, which is `primary()` finally returns `X` to frame 1, which is the function `expression()`. `tokens` is now `'+', '1']`.
 
-## while loop
-`tokens` is now `'+', '1']`.
-```python
-def expression(prec=1): 
-    ...
-    while precedence(peek()) >= prec:
-        ...
+def pop(constraint=None):
+    # top = peek()  # what is the next token in the list of tokens?
+    if constraint is None or (top == constraint) or (callable(constraint) and constraint(top)):
+        return tokens.pop(0)
 ```
-`tokens` is `'+', '1']`, `peek()` returns `'+'` so we evaluate `precedence(peek())` in frame 2.
+
+`pop(is_varname)` is `True` and it returns `X` to frame 4, whose calling function is `varname()`. 
+
+frame 4 returns `'X'` to frame 3 (whose calling function is `variable()`), which is then bound to `V`. 
+
+frame 3 returns `V` to frame 2 (whose calling function is `primary()`), which finally returns `X` to frame 1 (whose calling function is `expression()`). inside frame 1, `exp` points to `X`.
+
+`tokens` is now `'+', '1']`.
+
+## enter into while loop
+```python
+# def expression(prec=1): 
+    # exp = primary()
+    while precedence(peek()) >= prec:
+        # op = pop()
+        # rhs = expression(precedence(op) + associativity(op))
+        # exp = Opcall(exp, op, rhs)
+    # return exp
+```
+`tokens` is `['+', '1']`, 
+
+`peek()` is executed in frame 2. it evaluates to `'+'`.
+
+we evaluate `precedence('+')` in frame 2.
 ```python
 def precedence(op): 
     return (3 if op == '^' else 2 if op in ('*', '/', '%') else 1 if op in ('+', '-') else 0)
 ```
-since `op` is `'+'`, `precedence(peek())` returns `1` to frame 1.
+`op` is `'+'` so `precedence(peek())` evaluates to `1`. it is greater than or equal to `prec=1` so we continue inside the while loop.
 
-```python
-def expression(prec=1): 
-    ...
-    while precedence(peek()) >= prec:
-        op = pop()
-        rhs = expression(precedence(op) + associativity(op))
-        exp = Opcall(exp, op, rhs)  
-```
+## evaluate `op = pop()`
 now we go through the body of the while loop.
-
-`op` is equal to `+`, since `pop()` simply removes the first item from `tokens`. `tokens` is now `['1']`.
-
-### rhs
-lets evaluate the following, where `tokens` is `['1']`.
 ```python
-rhs = expression(precedence(op) + associativity(op))
+# def expression(prec=1): 
+    # exp = primary()
+    # while precedence(peek()) >= prec:
+        op = pop()
+        # rhs = expression(precedence(op) + associativity(op))
+        # exp = Opcall(exp, op, rhs)
+    # return exp
 ```
-in frame 2, `precedence(op)` returns `1` and exits. 
+`pop()` removes the first item from `tokens`, which is `['+', '1']`. `op` is equal to `'+'`. `tokens` is now `['1']`.
 
-in frame 2, `associativity(op)` returns `1` and exits:
+### evaluating `rhs = expression(precedence(op) + associativity(op))`
+lets evaluate `rhs` in frame 1. `tokens` is `['1']`.
 ```python
+# def expression(prec=1): 
+    # exp = primary()
+    # while precedence(peek()) >= prec:
+        # op = pop()
+        rhs = expression(precedence(op) + associativity(op))
+        # exp = Opcall(exp, op, rhs)
+    # return exp
+
 def associativity(op): 
     return (0 if op == '^' else 1)
 ```
-in frame 1, we now evaluate:
-```python
-rhs = expression(precedence(op) + associativity(op))  # rhs = expression(2)
-```
-in frame 2, we evaluate `expression(2)`.
+in frame 2, `precedence(op)` returns `1` to frame 1 and exits. 
+
+in frame 2, `associativity(op)` returns `1` to frame 1 and exits:
+
+back to frame 1, we are effectively evaluating `expression(2)`.
+
+we launch frame 2 so we can evaluate `expression(2)`.
 ```python
 def expression(prec=1): 
     exp = primary()                         # 'A' => 'A'
@@ -110,11 +131,47 @@ def expression(prec=1):
     return exp
 
 ```
-`exp` is equal to `primary()`, which hits the following condition:
+`exp` is equal to `primary()`, which is evaluated in frame 3 and hits the following condition:
 ```python
 def primary():
     "Parse a primary expression (no infix op except maybe within parens)."
     if is_number(peek()):                   # '1.23' => 1.23 
         return number()
     ...
+def number():
+    return (-1 if pop('-') else +1) * float(pop()) 
+```
+since `peek()` is a number (`tokens` is currently `['1']`), `primary()` returns `1` to frame 2 and binds it to `exp`. `tokens` is empty now, having been popped by `number()`.
+
+since `peek()` is `None` (`tokens` is empty) and `precedence(None)` evaluates to 0:
+```python
+def precedence(op): 
+    return (3 if op == '^' else 2 if op in ('*', '/', '%') else 1 if op in ('+', '-') else 0)
+```
+then we break out of the while loop, since 0 is not greater or equal than 2.
+
+`expression(2)` finally returns `exp`, which is equal to `1` to frame 1 and binds it to `rhs` in frame 1.
+
+### evaluating `exp = Opcall(exp, op, rhs)`
+```python
+# def expression(prec=1): 
+    # exp = primary()
+    # while precedence(peek()) >= prec:
+        # op = pop()
+        # rhs = expression(precedence(op) + associativity(op))
+        exp = Opcall(exp, op, rhs)
+    # return exp
+```
+we have `exp` bound to `1`, `op` equal to `+`, and `rhs` equal to `1`. we now wrap these three symbols into a namedtuple of type `Opcall` and name `exp`.
+
+
+### return `exp`
+```python
+# def expression(prec=1): 
+    # exp = primary()
+    # while precedence(peek()) >= prec:
+        # op = pop()
+        # rhs = expression(precedence(op) + associativity(op))
+        # exp = Opcall(exp, op, rhs)
+    return exp
 ```
