@@ -74,6 +74,8 @@ def statement():
 
 
 ### step 1 of 3: evaluating `variable`
+the goals of `variable()` are (1) identify a valid symbol (ie symbol is a string, such that the first letter is an alphabet not number) and (2) append said symbol to `args`. 
+
 the first element in `grammar_rules` is `variable`. `callable(variable)` is `True` so it is evaluated in frame 2.
 ```python
 def variable(): 
