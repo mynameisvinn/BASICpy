@@ -1,0 +1,74 @@
+# evaluate
+parsing returns a list of `Stmt` tuples to be executed.
+
+```python
+def execute(stmts): 
+
+    "Parse and execute the BASIC program."
+    global variables, functions, column
+    functions, data = preprocess(stmts) # {name: function,...}, deque[number,...]
+    
+    variables = defaultdict(float) # mapping of {variable: value}, default 0.0
+    column    = 0                  # column to PRINT in next
+    pc        = 0                  # program counter
+    ret       = 0                  # index (pc) that a GOSUB returns to
+    fors      = {}                 # runtime map of {varname: ForState(...)}
+    goto      = {stmt.num: i       # map of {linenumber: index}
+                 for (i, stmt) in enumerate(stmts)}
+    while pc < len(stmts):
+        
+        (_, typ, args) = stmts[pc] # Fetch and decode the instruction
+        pc += 1                    # Increment the program counter
+        if typ in ('END', 'STOP') or (typ == 'READ' and not data): 
+            return
+        elif typ == 'LET':
+            V, exp = args
+            let(V, evalu(exp))
+        elif typ == 'READ':
+            for V in args[0]:
+                let(V, data.popleft())  # data is a deque
+        elif typ == 'PRINT':
+            basic_print(args[0])
+        elif typ == 'GOTO':
+            pc = goto[args[0]]
+        elif typ == 'IF':
+            lhs, relational, rhs, dest = args
+            if functions[relational](evalu(lhs), evalu(rhs)):
+                pc = goto[dest]
+        elif typ == 'FOR':
+            V, start, end, step = args
+            variables[V] = evalu(start)
+            fors[V] = ForState(pc, evalu(end), evalu(step))
+        elif typ == 'NEXT':
+            V = args[0]
+            continu, end, step = fors[V]
+            if ((step >= 0 and variables[V] + step <= end) or
+                (step <  0 and variables[V] + step >= end)):
+                variables[V] += step
+                pc = continu
+        elif typ == 'GOSUB':
+            ret = pc
+            pc  = goto[args[0]]
+        elif typ == 'RETURN':
+            pc = ret
+```
+## executing `Stmt(num=11, typ='DATA', args=[[8.0, 4.0]])`
+
+## executing `Stmt(num=15, typ='READ', args=[['N0', 'P0']])`
+```python
+# relevant switch statement
+elif typ == 'READ':
+	for V in args[0]:
+		let(V, data.popleft())  # data is a deque
+
+# relevant subroutines
+def let(V, value):
+    """update variable and its corresponding value in the environment.
+    """
+    # if isinstance(V, Subscript): # A subsscripted variable
+        # variables[V.var, tuple(evalu(x) for x in V.indexes)] = value 
+    else:                        # An unsubscripted variable
+        variables[V] = value  # variables points to the dict that represents the global environment
+```
+this `Stmt` tells the BASIC interpreter to, for a `READ`, assign each variable (eg `'N0'`, and `'P0') to its corresponding values, which will be read from `data`, a global deque. 
+
